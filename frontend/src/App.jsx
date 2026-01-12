@@ -1,18 +1,15 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./Pages/Login";
 import Me from "./Pages/Me";
+import Documents from "./Pages/Documents";
 
 function App() {
-
-
-  const loggedIn = !!localStorage.getItem("token");
-
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={loggedIn ? <Navigate to="/me" /> : <Login />} />
+        <Route path="/" element={<Login />} />
         <Route path="/me" element={<Me />} />
+        <Route path="/documents" element={<Documents />} />
       </Routes>
     </BrowserRouter>
   );
