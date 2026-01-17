@@ -11,7 +11,6 @@ const FRONTEND_URL = getEnv(
   "http://localhost:5173"
 );
 
-/* ---------------- GOOGLE LOGIN ---------------- */
 
 router.get("/google", (req, res) => {
   const params = new URLSearchParams({
@@ -28,13 +27,11 @@ router.get("/google", (req, res) => {
   );
 });
 
-/* ---------------- GOOGLE CALLBACK ---------------- */
 
 router.get("/google/callback", async (req, res) => {
   const { code } = req.query;
 
   try {
-    // Exchange code for token
     const { data } = await axios.post(
       "https://oauth2.googleapis.com/token",
       {
@@ -48,7 +45,6 @@ router.get("/google/callback", async (req, res) => {
 
     const { access_token } = data;
 
-    // Get user profile
     const { data: profile } = await axios.get(
       "https://www.googleapis.com/oauth2/v2/userinfo",
       {
@@ -58,7 +54,6 @@ router.get("/google/callback", async (req, res) => {
 
     const { email, name, id } = profile;
 
-    // Find or create user
     let user = await User.findOne({ email });
     if (!user) {
       user = await User.create({
@@ -68,21 +63,18 @@ router.get("/google/callback", async (req, res) => {
       });
     }
 
-    // Create JWT
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    // Set cookie
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
     });
 
-    // Redirect safely
     res.redirect(`${FRONTEND_URL}/me`);
   } catch (err) {
     console.error(err);
@@ -90,7 +82,6 @@ router.get("/google/callback", async (req, res) => {
   }
 });
 
-/* ---------------- LOGOUT ---------------- */
 
 router.post("/logout", (req, res) => {
   res.clearCookie("token", {

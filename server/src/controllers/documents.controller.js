@@ -1,5 +1,9 @@
 import supabase from "../config/supabase.js";
 import Document from "../models/documents.js";
+import Chunk from "../models/Chunk.js";
+import { ingestionQueue } from "../queue/ingestion.queue.js";
+import qdrant from "../utils/qdrant.js";
+
 
 export const uploadDocument = async (req, res) => {
   try {
@@ -16,7 +20,6 @@ export const uploadDocument = async (req, res) => {
       return res.status(400).json({ msg: "Unsupported file type" });
     }
 
-    // 1. Create metadata (storageKey NOT required now)
     const document = await Document.create({
       userId: req.userId,
       filename: originalname,
@@ -25,31 +28,45 @@ export const uploadDocument = async (req, res) => {
       status: "uploaded",
     });
 
-    // 2. Build storage key
     const storageKey = `${req.userId}/${document._id}.${fileType}`;
 
-    // 3. Upload to Supabase (use imported client directly)
     const { error } = await supabase.storage
       .from("documents")
       .upload(storageKey, buffer, { contentType: mimetype });
 
     if (error) {
       document.status = "failed";
-      document.error = error.message;
       await document.save();
       return res.status(500).json({ msg: "Upload failed" });
     }
 
-    // 4. Save storageKey
     document.storageKey = storageKey;
     await document.save();
 
-    res.json(document);
+    await ingestionQueue.add(
+      "document-ingestion",
+      {
+        documentId: document._id.toString(),
+        userId: req.userId,
+      },
+      {
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 5000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      }
+    );
+
+    res.status(200).json(document);
   } catch (err) {
-    console.error(err);
+    console.error("Upload error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
+
 
 export const listDocuments = async (req, res) => {
   try {
@@ -58,10 +75,12 @@ export const listDocuments = async (req, res) => {
       .select("-__v");
 
     res.json(documents);
-  } catch {
+  } catch (err) {
+    console.error("List documents error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
+
 
 export const deleteDocument = async (req, res) => {
   try {
@@ -82,18 +101,36 @@ export const deleteDocument = async (req, res) => {
         .remove([document.storageKey]);
 
       if (error) {
-        return res
-          .status(500)
-          .json({ msg: "Failed to delete file from storage" });
+        console.error("Supabase delete failed:", error.message);
       }
     }
 
+    await Chunk.deleteMany({ documentId: document._id });
+
+    await qdrant.delete("resonance_chunks", {
+      filter: {
+        must: [
+          {
+            key: "documentId",
+            match: { value: document._id.toString() },
+          },
+          {
+            key: "userId",
+            match: { value: req.userId.toString() },
+          },
+        ],
+      },
+    });
+
     await document.deleteOne();
+
     res.json({ msg: "Document deleted successfully" });
-  } catch {
+  } catch (err) {
+    console.error("Delete document error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };
+
 
 export const renameDocument = async (req, res) => {
   try {
@@ -113,11 +150,12 @@ export const renameDocument = async (req, res) => {
       return res.status(404).json({ msg: "Document not found" });
     }
 
-    document.filename = filename;
+    document.filename = filename.trim();
     await document.save();
 
     res.json(document);
-  } catch {
+  } catch (err) {
+    console.error("Rename document error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };

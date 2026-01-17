@@ -21,7 +21,6 @@ router.get("/", auth, listDocuments);
 
 router.delete("/:id", auth, deleteDocument);
 
-// Rename document
 router.patch("/:id", auth, renameDocument);
 
 export default router;

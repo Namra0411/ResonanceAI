@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 
 const documentSchema = new mongoose.Schema(
   {
-    // Ownership
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -10,7 +9,6 @@ const documentSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Basic file info
     filename: {
       type: String,
       required: true,
@@ -23,16 +21,13 @@ const documentSchema = new mongoose.Schema(
     },
 
     fileSize: {
-      type: Number, // bytes
+      type: Number, 
     },
 
-    // Supabase storage reference
     storageKey: {
       type: String,
-      // required: true,
     },
 
-    // Processing state
     status: {
       type: String,
       enum: ["uploaded", "processing", "processed", "failed"],
@@ -40,7 +35,6 @@ const documentSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Optional (future use)
     error: {
       type: String,
     },
