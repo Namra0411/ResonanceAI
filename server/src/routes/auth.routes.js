@@ -75,7 +75,7 @@ router.get("/google/callback", async (req, res) => {
       sameSite: "lax",
     });
 
-    res.redirect(`${FRONTEND_URL}/me`);
+    res.redirect(`${FRONTEND_URL}/documents`);
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: "Google auth failed" });

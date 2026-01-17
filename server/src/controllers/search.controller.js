@@ -8,7 +8,7 @@ const TOP_K_CHUNKS = 20;
 const TOP_N_DOCS = 5;
 const PREVIEW_CHUNKS = 3;
 
-const MIN_SCORE = 0.3;
+const MIN_SCORE = 0.25;
 const DELTA = 0.08;
 
 export const searchDocuments = async (req, res) => {

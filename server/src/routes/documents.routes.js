@@ -6,18 +6,16 @@ import {
   listDocuments,
   deleteDocument,
   renameDocument,
+  getSignedUrl,
 } from "../controllers/documents.controller.js";
 
 const router = express.Router();
 
-router.post(
-  "/upload",
-  auth,
-  upload.single("file"),
-  uploadDocument
-);
+router.post("/upload", auth, upload.single("file"), uploadDocument);
 
 router.get("/", auth, listDocuments);
+
+router.get("/:id/signed-url", auth, getSignedUrl);
 
 router.delete("/:id", auth, deleteDocument);
 

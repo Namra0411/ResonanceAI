@@ -18,6 +18,7 @@ export const renameDocument = async (id, filename) => {
   const res = await API.patch(`/api/documents/${id}`, { filename });
   return res.data;
 };
+
 export const uploadDocument = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -28,5 +29,10 @@ export const uploadDocument = async (file) => {
     },
   });
 
+  return res.data;
+};
+
+export const getDocumentSignedUrl = async (id) => {
+  const res = await API.get(`/api/documents/${id}/signed-url`);
   return res.data;
 };

@@ -4,7 +4,6 @@ import Chunk from "../models/Chunk.js";
 import { ingestionQueue } from "../queue/ingestion.queue.js";
 import qdrant from "../utils/qdrant.js";
 
-
 export const uploadDocument = async (req, res) => {
   try {
     if (!req.file) {
@@ -51,10 +50,7 @@ export const uploadDocument = async (req, res) => {
       },
       {
         attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 5000,
-        },
+        backoff: { type: "exponential", delay: 5000 },
         removeOnComplete: true,
         removeOnFail: false,
       }
@@ -66,7 +62,6 @@ export const uploadDocument = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
 
 export const listDocuments = async (req, res) => {
   try {
@@ -80,7 +75,6 @@ export const listDocuments = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
 
 export const deleteDocument = async (req, res) => {
   try {
@@ -96,13 +90,9 @@ export const deleteDocument = async (req, res) => {
     }
 
     if (document.storageKey) {
-      const { error } = await supabase.storage
+      await supabase.storage
         .from("documents")
         .remove([document.storageKey]);
-
-      if (error) {
-        console.error("Supabase delete failed:", error.message);
-      }
     }
 
     await Chunk.deleteMany({ documentId: document._id });
@@ -110,14 +100,8 @@ export const deleteDocument = async (req, res) => {
     await qdrant.delete("resonance_chunks", {
       filter: {
         must: [
-          {
-            key: "documentId",
-            match: { value: document._id.toString() },
-          },
-          {
-            key: "userId",
-            match: { value: req.userId.toString() },
-          },
+          { key: "documentId", match: { value: document._id.toString() } },
+          { key: "userId", match: { value: req.userId.toString() } },
         ],
       },
     });
@@ -130,7 +114,6 @@ export const deleteDocument = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
 
 export const renameDocument = async (req, res) => {
   try {
@@ -156,6 +139,34 @@ export const renameDocument = async (req, res) => {
     res.json(document);
   } catch (err) {
     console.error("Rename document error:", err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+export const getSignedUrl = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const document = await Document.findOne({
+      _id: id,
+      userId: req.userId,
+    });
+
+    if (!document || !document.storageKey) {
+      return res.status(404).json({ msg: "Document not found" });
+    }
+
+    const { data, error } = await supabase.storage
+      .from("documents")
+      .createSignedUrl(document.storageKey, 60);
+
+    if (error) {
+      return res.status(500).json({ msg: "Failed to generate signed URL" });
+    }
+
+    res.json({ url: data.signedUrl });
+  } catch (err) {
+    console.error("Signed URL error:", err);
     res.status(500).json({ msg: "Server error" });
   }
 };

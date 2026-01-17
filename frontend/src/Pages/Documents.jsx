@@ -5,16 +5,24 @@ import {
   renameDocument,
   uploadDocument,
 } from "../api/documents";
+import DocumentCard from "../Components/DocumentCard";
+import DocumentSkeleton from "../Components/DocumentSkeleton";
+import { useNavigate } from "react-router-dom";
+import "./Documents.css";
+import Navbar from "../Components/Navbar";
 
 const Documents = () => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const navigate = useNavigate();
 
   const loadDocuments = async () => {
+    setLoading(true);
     const data = await fetchDocuments();
-    setDocuments(data);
+    setDocuments(Array.isArray(data) ? data : []);
     setLoading(false);
   };
 
@@ -24,7 +32,7 @@ const Documents = () => {
 
   const handleUpload = async () => {
     if (!file) {
-      alert("Please select a file");
+      showToast("Please select a file first");
       return;
     }
 
@@ -32,60 +40,102 @@ const Documents = () => {
     try {
       await uploadDocument(file);
       setFile(null);
-      await loadDocuments();
-    } catch (err) {
-      alert("Upload failed");
+      loadDocuments();
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Delete this document?")) return;
-    await deleteDocument(id);
+  const handleDelete = async () => {
+    await deleteDocument(confirmDelete);
+    setConfirmDelete(null);
     loadDocuments();
   };
-
-  const handleRename = async (doc) => {
-    const newName = prompt("New filename", doc.filename);
-    if (!newName) return;
-    await renameDocument(doc._id, newName);
-    loadDocuments();
-  };
-
-  if (loading) return <p>Loading...</p>;
 
   return (
-    <div style={{ padding: 40 }}>
-      <h2>Your Documents</h2>
+    <>
+      <Navbar />
 
-      {/* Upload Section */}
-      <div style={{ marginBottom: 20 }}>
-        <input
-          type="file"
-          accept=".pdf,.txt"
-          onChange={(e) => setFile(e.target.files[0])}
-        />
-        <button onClick={handleUpload} disabled={uploading}>
-          {uploading ? "Uploading..." : "Upload"}
-        </button>
+      <div className="docs-root">
+        {/* Header */}
+        <div className="docs-top">
+          <h1>Your documents</h1>
+
+          <button
+            className="search-icon-btn"
+            onClick={() => navigate("/search")}
+            title="Search documents"
+          >
+            🔍
+          </button>
+        </div>
+
+        {/* Upload */}
+        <div className="docs-upload">
+          <label className="file-picker">
+            Choose file
+            <input
+              type="file"
+              accept=".pdf,.txt"
+              hidden
+              onChange={(e) => setFile(e.target.files[0])}
+            />
+          </label>
+
+          <span className="file-name">
+            {file ? file.name : "No file selected"}
+          </span>
+
+          <button onClick={handleUpload} disabled={uploading}>
+            {uploading ? "Uploading…" : "Upload"}
+          </button>
+        </div>
+
+        {/* Grid */}
+        <div className="docs-grid">
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <DocumentSkeleton key={i} />
+              ))
+            : documents.map((doc) => (
+                <DocumentCard
+                  key={doc._id}
+                  doc={doc}
+                  onRename={renameDocument}
+                  onDelete={() => setConfirmDelete(doc._id)}
+                />
+              ))}
+        </div>
+
+        {/* Delete Confirmation */}
+        {confirmDelete && (
+          <div className="modal-backdrop">
+            <div className="modal">
+              <h3>Delete document?</h3>
+              <p>This action cannot be undone.</p>
+              <div className="modal-actions">
+                <button onClick={() => setConfirmDelete(null)}>
+                  Cancel
+                </button>
+                <button className="danger" onClick={handleDelete}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {documents.length === 0 && <p>No documents uploaded</p>}
-
-      <ul>
-        {documents.map((doc) => (
-          <li key={doc._id} style={{ marginBottom: 10 }}>
-            <strong>{doc.filename}</strong> ({doc.fileType}) —{" "}
-            {doc.status}
-            <br />
-            <button onClick={() => handleRename(doc)}>Rename</button>
-            <button onClick={() => handleDelete(doc._id)}>Delete</button>
-          </li>
-        ))}
-      </ul>
-    </div>
+    </>
   );
 };
 
 export default Documents;
+
+/* simple toast */
+function showToast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.innerText = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}

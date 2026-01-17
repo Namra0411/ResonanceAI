@@ -1,0 +1,132 @@
+/* RESET */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Background */
+.landing-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(1200px 600px at top, #1e293b, #020617);
+  color: white;
+  overflow: hidden;
+}
+
+/* Content wrapper */
+.landing-content {
+  max-width: 720px;
+  padding: 48px 32px;
+  text-align: center;
+  animation: enter 0.9s ease-out;
+}
+
+/* Logo (BIG now) */
+.landing-logo {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 12px 24px rgba(0,0,0,0.4));
+}
+
+/* Title */
+.landing-title {
+  font-size: 52px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  margin-bottom: 12px;
+}
+
+/* Subtitle */
+.landing-subtitle {
+  font-size: 22px;
+  color: #93c5fd;
+  margin-bottom: 18px;
+}
+
+/* Description */
+.landing-description {
+  font-size: 17px;
+  color: #cbd5f5;
+  line-height: 1.7;
+  margin-bottom: 36px;
+}
+
+/* Feature row */
+.landing-features {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 42px;
+}
+
+.feature {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  backdrop-filter: blur(8px);
+}
+
+/* CTA */
+.google-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 16px;
+  border: none;
+  cursor: pointer;
+  background: white;
+  color: #020617;
+  transition: all 0.25s ease;
+}
+
+.google-cta:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Footnote */
+.landing-footnote {
+  margin-top: 28px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+/* Animation */
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+  .landing-title {
+    font-size: 40px;
+  }
+
+  .landing-description {
+    font-size: 15px;
+  }
+}
