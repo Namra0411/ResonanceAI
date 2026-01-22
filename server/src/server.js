@@ -44,6 +44,9 @@ app.use("/api/search", searchRoutes);
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
+import chatRoutes from "./routes/chat.route.js";
+
+app.use("/api/chat", chatRoutes);
 
 const PORT = process.env.PORT || 5000;
 

@@ -72,13 +72,20 @@ const Documents = () => {
 
         {/* Upload */}
         <div className="docs-upload">
-          <label className="file-picker">
+          <label
+            className={`file-picker ${uploading ? "disabled" : ""}`}
+          >
             Choose file
             <input
               type="file"
               accept=".pdf,.txt"
               hidden
-              onChange={(e) => setFile(e.target.files[0])}
+              disabled={uploading}               // ✅ CHANGE #1
+              onChange={(e) => {
+                if (!uploading) {
+                  setFile(e.target.files[0]);   // ✅ CHANGE #2
+                }
+              }}
             />
           </label>
 

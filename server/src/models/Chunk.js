@@ -19,6 +19,17 @@ const chunkSchema = new mongoose.Schema(
     metadata: {
       chunkIndex: Number,
       totalChunks: Number,
+
+      pageNumber: {
+        type: Number,
+        index: true,
+      },
+
+      chunkingMode: {
+        type: String,
+        enum: ["atomic", "structural", "semantic"],
+      },
+
       filename: String,
       fileType: String,
     },

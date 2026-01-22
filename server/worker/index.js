@@ -12,7 +12,10 @@ import Chunk from "../src/models/Chunk.js";
 import { downloadFromSupabase } from "./downloadFromSupabase.js";
 import { parseFile } from "./parser.js";
 
-import { chunkText } from "../src/utils/chunker.js";
+import { analyzePageStructure } from "../src/chunking/analyzePageStructure.js";
+import { chunkDocumentByStructure } from "../src/chunking/chunker/chunkDispatcher.js";
+import { extractAtomicKeyValues } from "../src/chunking/atomicKeyValueExtractor.js";
+
 import { embedTexts } from "../src/utils/embedder.js";
 import {
   ensureQdrantCollection,
@@ -35,37 +38,67 @@ const worker = new Worker(
     }
 
     try {
-      // Mark processing
       await Document.findByIdAndUpdate(documentId, {
         status: "processing",
       });
-
-      // Download file
+      //  Download file
       const buffer = await downloadFromSupabase(doc.storageKey);
-      console.log(
-        `⬇️ Downloaded file for ${documentId}, size: ${buffer.length} bytes`
-      );
 
-      // Parse file
-      const text = await parseFile(buffer, doc.fileType);
+      //  Parse pages
+      const pages = await parseFile(buffer, doc.fileType);
+      // pages[] MUST retain page identity
 
-      console.log("📄 Parsed document confirmation:");
-      console.log("Text length:", text.length);
-      console.log("Word count:", text.split(/\s+/).length);
-      console.log("Sample:", text.slice(0, 200));
+      // Normalize pageNumber (defensive)
+      const normalizedPages = pages.map((page, index) => {
+        const pageNumber =
+          page?.pageNumber ??
+          page?.metadata?.loc?.pageNumber ??
+          index + 1;
 
-      const chunkData = await chunkText({
-        text,
+        return {
+          ...page,
+          pageNumber,
+        };
+      });
+
+      //  Analyze structure (page-aware)
+      const analyzedPages = analyzePageStructure(normalizedPages);
+
+      //  Structure-aware chunking
+      const baseChunks = await chunkDocumentByStructure({
+        pages: analyzedPages,
         userId,
         documentId,
         filename: doc.filename,
         fileType: doc.fileType,
       });
 
-      console.log(`🧩 Created ${chunkData.length} chunks`);
+      //  Atomic key–value extraction
+      const finalChunks = extractAtomicKeyValues(baseChunks);
 
-      const savedChunks = await Chunk.insertMany(chunkData);
+      console.log(
+        `🧩 Chunks created: base=${baseChunks.length}, atomic=${finalChunks.length}`
+      );
 
+      //  Attach pageNumber to every chunk FIX)
+      const chunksWithPageNumbers = finalChunks.map((chunk) => ({
+        ...chunk,
+        metadata: {
+          ...chunk.metadata,
+          pageNumber:
+            chunk.pageNumber ??
+            chunk.metadata?.pageNumber ??
+            chunk.sourcePageNumber ??
+            null,
+        },
+      }));
+
+      //  Store chunks
+      const savedChunks = await Chunk.insertMany(
+        chunksWithPageNumbers
+      );
+
+      //  Vector store
       await ensureQdrantCollection();
 
       const vectors = await embedTexts(
@@ -74,6 +107,7 @@ const worker = new Worker(
 
       await upsertChunks(savedChunks, vectors);
 
+      //  Mark processed
       await Document.findByIdAndUpdate(documentId, {
         status: "processed",
       });
