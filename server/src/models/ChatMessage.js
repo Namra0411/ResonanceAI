@@ -19,7 +19,13 @@ const chatMessageSchema = new mongoose.Schema(
 
     // assistant-only metadata
     confidence: Number,
-    topPages: [Number],
+    topPages: [
+  {
+    pageNumber: Number,
+    url: String,
+  },
+],
+
     sources: [
       {
         pageNumber: Number,

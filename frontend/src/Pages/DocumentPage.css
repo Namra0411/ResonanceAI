@@ -1,0 +1,78 @@
+.docpage-root {
+  min-height: 100vh;
+  background: radial-gradient(1200px 600px at top, #1e293b, #020617);
+  padding: 24px;
+  color: white;
+}
+
+.docpage-layout {
+  height: calc(100vh - 48px);
+  display: flex;
+}
+
+.docpage-pdf {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.docpage-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+}
+
+.docpage-btn {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  background: rgba(255,255,255,0.12);
+  color: white;
+  cursor: pointer;
+}
+
+.docpage-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.docpage-page-indicator {
+  font-size: 14px;
+  color: #cbd5f5;
+}
+
+.docpage-pdf-viewer {
+  flex: 1;
+  overflow: auto;
+}
+
+/* SPLITTER */
+.docpage-splitter {
+  width: 6px;
+  cursor: col-resize;
+  background: rgba(255,255,255,0.08);
+  margin: 0 8px;
+  border-radius: 999px;
+}
+
+.docpage-splitter:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* CHAT */
+.docpage-chat {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}

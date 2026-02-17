@@ -17,21 +17,37 @@ const chunkSchema = new mongoose.Schema(
       required: true,
     },
     metadata: {
-      chunkIndex: Number,
-      totalChunks: Number,
+      chunkIndex: {
+        type: Number,
+        required: true,
+      },
+
+      totalChunks: {
+        type: Number,
+        required: true,
+      },
 
       pageNumber: {
         type: Number,
         index: true,
+        required: true,
       },
 
       chunkingMode: {
         type: String,
-        enum: ["atomic", "structural", "semantic"],
+        enum: ["atomic", "structural", "semantic", "page"], // ✅ FIX
+        required: true,
       },
 
-      filename: String,
-      fileType: String,
+      filename: {
+        type: String,
+        required: true,
+      },
+
+      fileType: {
+        type: String,
+        required: true,
+      },
     },
   },
   { timestamps: true }

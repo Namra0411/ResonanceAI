@@ -25,7 +25,10 @@ export const chatWithDocument = async (req, res) => {
       documentId,
       query,
     });
-console.log("CHAT RESPONSE:", JSON.stringify(result, null, 2));
+console.log("🧪 FINAL CHAT API RESPONSE:", {
+  topPages: result.topPages,
+  sources: result.sources?.map(s => s.pageNumber),
+});
 
     res.json(result);
   } catch (err) {

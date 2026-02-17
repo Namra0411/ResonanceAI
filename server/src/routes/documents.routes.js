@@ -7,6 +7,7 @@ import {
   deleteDocument,
   renameDocument,
   getSignedUrl,
+  streamDocumentFile
 } from "../controllers/documents.controller.js";
 
 const router = express.Router();
@@ -20,5 +21,7 @@ router.get("/:id/signed-url", auth, getSignedUrl);
 router.delete("/:id", auth, deleteDocument);
 
 router.patch("/:id", auth, renameDocument);
+// routes/documents.routes.js
+router.get("/:id/file", auth, streamDocumentFile);
 
 export default router;

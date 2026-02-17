@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { getDocumentSignedUrl } from "../api/documents";
+import { useNavigate } from "react-router-dom";
 import "./DocumentCard.css";
 
-pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-const SIGNED_URL_TTL = 5 * 60 * 1000; // 5 minutes
+const SIGNED_URL_TTL = 5 * 60 * 1000;
 
 const statusIcon = {
   uploaded: "⏳",
@@ -13,8 +14,6 @@ const statusIcon = {
   processed: "✅",
   failed: "❌",
 };
-
-/* ---------- persistent cache helpers ---------- */
 
 const getCachedEntry = (id) => {
   try {
@@ -37,11 +36,8 @@ const clearCachedEntry = (id) => {
   localStorage.removeItem(`doc_signed_url_${id}`);
 };
 
-/* --------------------------------------------- */
-
 const DocumentCard = ({ doc, onRename, onDelete }) => {
-  if (!doc) return null;
-
+  const navigate = useNavigate();
   const cached = getCachedEntry(doc._id);
 
   const [signedUrl, setSignedUrl] = useState(() => {
@@ -70,22 +66,6 @@ const DocumentCard = ({ doc, onRename, onDelete }) => {
     setSignedUrl(url);
   };
 
-  const handleView = async () => {
-    if (showRename) return;
-
-    if (!signedUrl) {
-      await loadSignedUrl();
-    }
-
-    const finalUrl =
-      signedUrl ||
-      getCachedEntry(doc._id)?.url;
-
-    if (finalUrl) {
-      window.open(finalUrl, "_blank");
-    }
-  };
-
   useEffect(() => {
     if (doc.fileType === "pdf" && !signedUrl) {
       loadSignedUrl();
@@ -98,23 +78,38 @@ const DocumentCard = ({ doc, onRename, onDelete }) => {
     hasRefreshedRef.current = true;
     clearCachedEntry(doc._id);
     setSignedUrl(null);
-
     await loadSignedUrl(true);
+  };
+
+  /* ACTIONS */
+
+  const handleView = async () => {
+    if (!signedUrl) {
+      await loadSignedUrl(true);
+    }
+
+    const finalUrl =
+      signedUrl || getCachedEntry(doc._id)?.url;
+
+    if (finalUrl) {
+      window.open(finalUrl, "_blank");
+    }
+  };
+
+  const handleChat = () => {
+    navigate(`/documents/${doc._id}`);
   };
 
   const submitRename = async () => {
     if (!newName.trim()) return;
-
-    // optimistic UI
     setDisplayName(newName);
-
     await onRename(doc._id, newName);
     setShowRename(false);
   };
 
   return (
     <>
-      <div className="document-card" onClick={handleView}>
+      <div className="document-card">
         <div className="document-thumbnail">
           {doc.fileType === "pdf" && signedUrl ? (
             <Document
@@ -152,6 +147,24 @@ const DocumentCard = ({ doc, onRename, onDelete }) => {
           </div>
         </div>
 
+        {/* PRIMARY ACTIONS */}
+        <div className="document-primary-actions">
+          <button
+            className="doc-action-btn view"
+            onClick={handleView}
+          >
+            View
+          </button>
+
+          <button
+            className="doc-action-btn chat"
+            onClick={handleChat}
+          >
+            Chat
+          </button>
+        </div>
+
+        {/* SECONDARY ACTIONS */}
         <div
           className="document-actions"
           onClick={(e) => e.stopPropagation()}
@@ -179,7 +192,10 @@ const DocumentCard = ({ doc, onRename, onDelete }) => {
               <button onClick={() => setShowRename(false)}>
                 Cancel
               </button>
-              <button className="primary" onClick={submitRename}>
+              <button
+                className="primary"
+                onClick={submitRename}
+              >
                 Save
               </button>
             </div>

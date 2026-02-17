@@ -3,7 +3,11 @@ import Document from "../models/documents.js";
 import Chunk from "../models/Chunk.js";
 import { ingestionQueue } from "../queue/ingestion.queue.js";
 import qdrant from "../utils/qdrant.js";
+import { Readable } from "stream";
 
+/* =========================
+   UPLOAD DOCUMENT
+========================= */
 export const uploadDocument = async (req, res) => {
   try {
     if (!req.file) {
@@ -63,6 +67,9 @@ export const uploadDocument = async (req, res) => {
   }
 };
 
+/* =========================
+   LIST DOCUMENTS
+========================= */
 export const listDocuments = async (req, res) => {
   try {
     const documents = await Document.find({ userId: req.userId })
@@ -76,6 +83,9 @@ export const listDocuments = async (req, res) => {
   }
 };
 
+/* =========================
+   DELETE DOCUMENT
+========================= */
 export const deleteDocument = async (req, res) => {
   try {
     const { id } = req.params;
@@ -115,6 +125,9 @@ export const deleteDocument = async (req, res) => {
   }
 };
 
+/* =========================
+   RENAME DOCUMENT
+========================= */
 export const renameDocument = async (req, res) => {
   try {
     const { id } = req.params;
@@ -143,6 +156,9 @@ export const renameDocument = async (req, res) => {
   }
 };
 
+/* =========================
+   GET SIGNED URL (DOWNLOAD / FALLBACK)
+========================= */
 export const getSignedUrl = async (req, res) => {
   try {
     const { id } = req.params;
@@ -168,5 +184,71 @@ export const getSignedUrl = async (req, res) => {
   } catch (err) {
     console.error("Signed URL error:", err);
     res.status(500).json({ msg: "Server error" });
+  }
+};
+
+/* =========================
+   STREAM PDF (PDF.js)
+========================= */
+export const streamDocumentFile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const document = await Document.findOne({
+      _id: id,
+      userId,
+    });
+
+    if (!document) {
+      return res.status(404).json({ msg: "Document not found" });
+    }
+
+    if (document.fileType !== "pdf") {
+      return res.status(400).json({ msg: "Only PDF preview supported" });
+    }
+
+    if (!document.storageKey) {
+      return res.status(500).json({ msg: "Missing storage key" });
+    }
+
+    const { data, error } = await supabase.storage
+      .from("documents")
+      .createSignedUrl(document.storageKey, 60);
+
+    if (error || !data?.signedUrl) {
+      console.error("Supabase signed URL error:", error);
+      return res.status(500).json({ msg: "Failed to access document" });
+    }
+
+    const range = req.headers.range;
+
+    const pdfResponse = await fetch(data.signedUrl, {
+      headers: range ? { Range: range } : {},
+    });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Accept-Ranges", "bytes");
+
+    if (pdfResponse.headers.get("content-range")) {
+      res.status(206);
+      res.setHeader(
+        "Content-Range",
+        pdfResponse.headers.get("content-range")
+      );
+    }
+
+    if (pdfResponse.headers.get("content-length")) {
+      res.setHeader(
+        "Content-Length",
+        pdfResponse.headers.get("content-length")
+      );
+    }
+
+    // ✅ CORRECT STREAM CONVERSION (Node 18+)
+    Readable.fromWeb(pdfResponse.body).pipe(res);
+  } catch (err) {
+    console.error("PDF stream error:", err);
+    res.status(500).json({ msg: "Failed to stream document" });
   }
 };

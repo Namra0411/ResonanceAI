@@ -5,7 +5,10 @@ import { pageChunker } from "../chunker/page.chunker.js";
 /**
  * Dispatch chunking strategy per page.
  * Page-aware, structure-aware.
- * Guarantees pageNumber is preserved on every chunk.
+ * Guarantees:
+ * - pageNumber
+ * - chunkIndex
+ * - totalChunks
  */
 export async function chunkDocumentByStructure({
   pages,
@@ -14,7 +17,7 @@ export async function chunkDocumentByStructure({
   filename,
   fileType,
 }) {
-  const structuralChunks = [];
+  let allChunks = [];
   let hasStructural = false;
 
   for (const page of pages) {
@@ -31,7 +34,7 @@ export async function chunkDocumentByStructure({
         fileType,
       });
 
-      structuralChunks.push(
+      allChunks.push(
         ...chunks.map((c) => ({
           ...c,
           metadata: {
@@ -49,7 +52,7 @@ export async function chunkDocumentByStructure({
         fileType,
       });
 
-      structuralChunks.push(
+      allChunks.push(
         ...chunks.map((c) => ({
           ...c,
           metadata: {
@@ -61,29 +64,26 @@ export async function chunkDocumentByStructure({
     }
   }
 
-  if (hasStructural && structuralChunks.length > 0) {
-    return structuralChunks.map((c, i) => ({
-      ...c,
-      metadata: {
-        ...c.metadata,
-        chunkIndex: i,
-      },
-    }));
+  // Fallback to semantic chunking (page-aware)
+  if (!hasStructural || allChunks.length === 0) {
+    allChunks = await semanticChunker({
+      pages,
+      userId,
+      documentId,
+      filename,
+      fileType,
+    });
   }
 
-  const semanticChunks = await semanticChunker({
-    pages,
-    userId,
-    documentId,
-    filename,
-    fileType,
-  });
+  // 🔒 FINAL NORMALIZATION STEP (THIS FIXES YOUR ERROR)
+  const totalChunks = allChunks.length;
 
-  return semanticChunks.map((c, i) => ({
-    ...c,
+  return allChunks.map((chunk, index) => ({
+    ...chunk,
     metadata: {
-      ...c.metadata,
-      chunkIndex: i,
+      ...chunk.metadata,
+      chunkIndex: index,
+      totalChunks,
     },
   }));
 }

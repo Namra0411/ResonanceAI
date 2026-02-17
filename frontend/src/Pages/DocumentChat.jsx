@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-
 import {
   getOrCreateChatSession,
   fetchChatMessages,
   sendChatMessage,
 } from "../api/chat";
+import "./DocumentChat.css";
 
-const DocumentChat = () => {
-  const { id: documentId } = useParams();
+const DocumentChat = ({ documentId: propDocumentId, onPageClick, embedded }) => {
+  const params = useParams();
   const navigate = useNavigate();
+
+  const documentId = propDocumentId || params.id;
 
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -17,19 +19,17 @@ const DocumentChat = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 1️⃣ Create / get session + load history
+  const bottomRef = useRef(null);
+
   useEffect(() => {
     const initChat = async () => {
       try {
-        const session = await getOrCreateChatSession(
-          documentId
-        );
+        const session = await getOrCreateChatSession(documentId);
         setSessionId(session);
 
         const history = await fetchChatMessages(session);
         setMessages(history);
       } catch (err) {
-        console.error("INIT CHAT ERROR:", err);
         setError("Failed to load chat");
       }
     };
@@ -37,7 +37,13 @@ const DocumentChat = () => {
     initChat();
   }, [documentId]);
 
-  // 2️⃣ Send message
+  /* AUTO SCROLL */
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages]);
+
   const handleAsk = async () => {
     if (!query.trim() || !sessionId) return;
 
@@ -68,8 +74,7 @@ const DocumentChat = () => {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (err) {
-      console.error("CHAT ERROR:", err);
+    } catch {
       setError("Failed to get answer");
     } finally {
       setLoading(false);
@@ -77,77 +82,92 @@ const DocumentChat = () => {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 800, margin: "0 auto" }}>
-      <button onClick={() => navigate(-1)}>← Back</button>
+    <div className="docchat-root">
+      {!embedded && (
+        <button
+          className="docchat-back"
+          onClick={() => navigate(-1)}
+        >
+          ← Back
+        </button>
+      )}
 
-      <h2>Document Chat</h2>
+      <div className="docchat-header">Chat</div>
 
-      {/* Chat messages */}
-      <div style={{ marginBottom: 24 }}>
+      <div className="docchat-messages">
         {messages.map((m, idx) => (
           <div
-            key={idx}
-            style={{
-              marginBottom: 12,
-              padding: 12,
-              background:
-                m.role === "user" ? "#0e43e2" : "#df1313",
-              borderRadius: 6,
-            }}
+            key={`${m.role}-${idx}`}
+            className={`docchat-message ${
+              m.role === "user"
+                ? "docchat-user"
+                : "docchat-assistant"
+            }`}
           >
-            <strong>
-              {m.role === "user" ? "You" : "Assistant"}
-            </strong>
-            <p style={{ marginTop: 4 }}>{m.content}</p>
-
-            {m.role === "assistant" && (
-              <div style={{ fontSize: 12, opacity: 0.8 }}>
-                {m.confidence !== undefined && (
-                  <div>Confidence: {m.confidence}</div>
-                )}
-                {m.topPages?.length > 0 && (
-  <div style={{ marginTop: 6 }}>
-    Pages:
-    {m.topPages.map((p) => (
-      <a
-        key={p.pageNumber}
-        href={p.url}
-        target="_blank"
-        rel="noreferrer"
-        style={{
-          marginLeft: 8,
-          color: "#4ea1ff",
-          textDecoration: "underline",
-        }}
-      >
-        {p.pageNumber}
-      </a>
-    ))}
-  </div>
-)}
-
+            <div className="docchat-bubble">
+              <div className="docchat-role">
+                {m.role === "user"
+                  ? "You"
+                  : "Assistant"}
               </div>
-            )}
+
+              <div className="docchat-content">
+                {m.content}
+              </div>
+
+              {m.role === "assistant" && (
+                <div className="docchat-meta">
+                  {m.confidence !== undefined && (
+                    <span className="docchat-confidence">
+                      Confidence: {m.confidence}
+                    </span>
+                  )}
+
+                  {m.topPages?.length > 0 && (
+                    <div className="docchat-pages">
+                      {m.topPages.map((p) => (
+                        <button
+                          key={p.pageNumber}
+                          className="docchat-page-chip"
+                          onClick={() =>
+                            onPageClick &&
+                            onPageClick(p.pageNumber)
+                          }
+                        >
+                          Page {p.pageNumber}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         ))}
+
+        <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <textarea
-        rows={3}
-        style={{ width: "100%", marginBottom: 12 }}
-        placeholder="Ask a question about this document…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        disabled={loading}
-      />
+      <div className="docchat-input">
+        <textarea
+          rows={2}
+          placeholder="Ask a question…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          disabled={loading}
+        />
 
-      <button onClick={handleAsk} disabled={loading}>
-        {loading ? "Thinking…" : "Ask"}
-      </button>
+        <button
+          className="docchat-send"
+          onClick={handleAsk}
+          disabled={loading}
+        >
+          {loading ? "Thinking…" : "Ask"}
+        </button>
+      </div>
 
       {error && (
-        <p style={{ color: "red", marginTop: 12 }}>{error}</p>
+        <div className="docchat-error">{error}</div>
       )}
     </div>
   );

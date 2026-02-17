@@ -4,20 +4,11 @@ import { runDocumentChat } from "./chat.service.js";
 
 const CONTEXT_TURNS = 6;
 
-export async function getOrCreateSession({
-  userId,
-  documentId,
-}) {
-  let session = await ChatSession.findOne({
-    userId,
-    documentId,
-  });
+export async function getOrCreateSession({ userId, documentId }) {
+  let session = await ChatSession.findOne({ userId, documentId });
 
   if (!session) {
-    session = await ChatSession.create({
-      userId,
-      documentId,
-    });
+    session = await ChatSession.create({ userId, documentId });
   }
 
   return session;
@@ -35,15 +26,15 @@ export async function handleChatMessage({
   sessionId,
   query,
 }) {
+  // Save user message
   await ChatMessage.create({
     sessionId,
     role: "user",
     content: query,
   });
 
-  const recentMessages = await ChatMessage.find({
-    sessionId,
-  })
+  // Fetch recent context
+  const recentMessages = await ChatMessage.find({ sessionId })
     .sort({ createdAt: -1 })
     .limit(CONTEXT_TURNS)
     .lean();
@@ -55,6 +46,7 @@ export async function handleChatMessage({
       content: m.content,
     }));
 
+  // Run RAG
   const ragResult = await runDocumentChat({
     userId,
     documentId,
@@ -62,15 +54,20 @@ export async function handleChatMessage({
     chatHistory,
   });
 
-  // 4️⃣ Save assistant message (🔥 FIX IS HERE)
+  // 🔍 DEBUG (keep for now)
+  console.log("🧪 SESSION CHAT RESULT:", {
+    topPages: ragResult.topPages,
+    sources: ragResult.sources?.map((s) => s.pageNumber),
+  });
+
+  // Save assistant message (✅ FIXED)
   const assistantMessage = await ChatMessage.create({
     sessionId,
     role: "assistant",
     content: ragResult.answer,
     confidence: ragResult.confidence,
     sources: ragResult.sources,
-
-    topPages: ragResult.topPages.map((p) => p.pageNumber),
+    topPages: ragResult.topPages, // 🔥 DO NOT MAP / DESTROY
   });
 
   return assistantMessage;

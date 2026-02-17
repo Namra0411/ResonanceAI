@@ -6,10 +6,8 @@ const splitter = new RecursiveCharacterTextSplitter({
 });
 
 /**
- * Generic text chunker
- * IMPORTANT:
- * - Preserves upstream metadata (pageNumber, chunkingMode, etc.)
- * - Never overwrites metadata blindly
+ * chunkText
+ * Preserves incoming metadata (especially pageNumber).
  */
 export async function chunkText({
   text,
@@ -17,19 +15,11 @@ export async function chunkText({
   documentId,
   filename,
   fileType,
-  metadata = {}, // 🔥 accept upstream metadata
+  metadata = {}, // 🔥 ACCEPT METADATA
 }) {
   const docs = await splitter.createDocuments(
     [text],
-    [
-      {
-        userId,
-        documentId,
-        filename,
-        fileType,
-        ...metadata, // pass-through for completeness
-      },
-    ]
+    [{ userId, documentId, filename, fileType }]
   );
 
   return docs.map((doc, index) => ({
@@ -37,14 +27,9 @@ export async function chunkText({
     documentId,
     text: doc.pageContent,
     metadata: {
-      // 🔥 PRESERVE upstream metadata
-      ...metadata,
-
-      // local chunk info
+      ...metadata,          // 🔥 PRESERVE pageNumber
       chunkIndex: index,
       totalChunks: docs.length,
-
-      // file info (safe defaults)
       filename,
       fileType,
     },

@@ -191,6 +191,7 @@ You are given:
 - optional previous conversation turns
 
 Rules:
+- be very fexible if u dont find the thing in document and if u think it is related to the document in some or other way answer it with ur natural thinking 
 - Use the document excerpts as the factual source.
 - You may use prior conversation for context and references.
 - Do NOT introduce new factual claims.
