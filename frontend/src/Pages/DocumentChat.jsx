@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   getOrCreateChatSession,
   fetchChatMessages,
-  sendChatMessage,
+  streamChatMessage,
 } from "../api/chat";
 import "./DocumentChat.css";
 
@@ -55,30 +55,55 @@ const DocumentChat = ({ documentId: propDocumentId, onPageClick, embedded }) => 
       content: query,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    // Placeholder assistant message we'll mutate as tokens/status arrive
+    const assistantIndex = { current: null };
+
+    setMessages((prev) => {
+      const next = [
+        ...prev,
+        userMessage,
+        { role: "assistant", content: "", status: "retrieving" },
+      ];
+      assistantIndex.current = next.length - 1;
+      return next;
+    });
     setQuery("");
 
-    try {
-      const res = await sendChatMessage({
-        sessionId,
-        documentId,
-        query: userMessage.content,
+    const updateAssistant = (patch) => {
+      setMessages((prev) => {
+        const next = [...prev];
+        const idx = assistantIndex.current;
+        next[idx] = { ...next[idx], ...patch };
+        return next;
       });
+    };
 
-      const assistantMessage = {
-        role: "assistant",
-        content: res.answer,
-        confidence: res.confidence,
-        topPages: res.topPages,
-        sources: res.sources,
-      };
+    await streamChatMessage(
+      { sessionId, documentId, query: userMessage.content },
+      {
+        onStatus: (status) => updateAssistant({ status }),
+        onToken: (token) =>
+          setMessages((prev) => {
+            const next = [...prev];
+            const idx = assistantIndex.current;
+            next[idx] = {
+              ...next[idx],
+              status: undefined,
+              content: (next[idx].content || "") + token,
+            };
+            return next;
+          }),
+        onDone: (meta) =>
+          updateAssistant({
+            confidence: meta.confidence,
+            topPages: meta.topPages,
+            sources: meta.sources,
+          }),
+        onError: () => setError("Failed to get answer"),
+      }
+    );
 
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch {
-      setError("Failed to get answer");
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
   };
 
   return (
@@ -112,7 +137,11 @@ const DocumentChat = ({ documentId: propDocumentId, onPageClick, embedded }) => 
               </div>
 
               <div className="docchat-content">
-                {m.content}
+                {m.status === "retrieving"
+                  ? "Retrieving relevant context…"
+                  : m.status === "generating"
+                  ? "Generating answer…"
+                  : m.content}
               </div>
 
               {m.role === "assistant" && (

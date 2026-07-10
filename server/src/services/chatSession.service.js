@@ -54,13 +54,7 @@ export async function handleChatMessage({
     chatHistory,
   });
 
-  // 🔍 DEBUG (keep for now)
-  console.log("🧪 SESSION CHAT RESULT:", {
-    topPages: ragResult.topPages,
-    sources: ragResult.sources?.map((s) => s.pageNumber),
-  });
-
-  // Save assistant message (✅ FIXED)
+  // Save assistant message
   const assistantMessage = await ChatMessage.create({
     sessionId,
     role: "assistant",
@@ -71,4 +65,69 @@ export async function handleChatMessage({
   });
 
   return assistantMessage;
+}
+
+/**
+ * SSE variant of handleChatMessage.
+ * Writes "status" events (retrieving/generating), "token" events per chunk,
+ * and a final "done" event with the persisted message metadata.
+ * `res` is an already-open Express response with SSE headers set by the caller.
+ */
+export async function streamChatMessage({
+  userId,
+  documentId,
+  sessionId,
+  query,
+  res,
+}) {
+  const send = (event, data) => {
+    res.write(`event: ${event}\n`);
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Save user message
+  await ChatMessage.create({
+    sessionId,
+    role: "user",
+    content: query,
+  });
+
+  const recentMessages = await ChatMessage.find({ sessionId })
+    .sort({ createdAt: -1 })
+    .limit(CONTEXT_TURNS)
+    .lean();
+
+  const chatHistory = recentMessages
+    .reverse()
+    .map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+
+  const ragResult = await runDocumentChat({
+    userId,
+    documentId,
+    query,
+    chatHistory,
+    onStatus: (status) => send("status", { status }),
+    onToken: (token) => send("token", { token }),
+  });
+
+  const assistantMessage = await ChatMessage.create({
+    sessionId,
+    role: "assistant",
+    content: ragResult.answer,
+    confidence: ragResult.confidence,
+    sources: ragResult.sources,
+    topPages: ragResult.topPages,
+  });
+
+  send("done", {
+    messageId: assistantMessage._id,
+    confidence: assistantMessage.confidence,
+    sources: assistantMessage.sources,
+    topPages: assistantMessage.topPages,
+  });
+
+  res.end();
 }

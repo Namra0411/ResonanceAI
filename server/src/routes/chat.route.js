@@ -5,6 +5,7 @@ import {
   getOrCreateSession,
   getSessionMessages,
   handleChatMessage,
+  streamChatMessage,
 } from "../services/chatSession.service.js";
 
 const router = express.Router();
@@ -114,6 +115,36 @@ router.post("/message", auth, async (req, res) => {
   } catch (err) {
     console.error("Chat message error:", err);
     res.status(500).json({ error: "Chat failed" });
+  }
+});
+
+router.post("/message/stream", auth, async (req, res) => {
+  const { sessionId, documentId, query } = req.body;
+  const userId = req.userId;
+
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  if (!sessionId || !documentId || !query) {
+    return res.status(400).json({
+      error: "sessionId, documentId and query are required",
+    });
+  }
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+  res.flushHeaders?.();
+
+  try {
+    await streamChatMessage({ userId, documentId, sessionId, query, res });
+  } catch (err) {
+    console.error("Stream chat error:", err);
+    res.write(`event: error\n`);
+    res.write(`data: ${JSON.stringify({ error: "Chat failed" })}\n\n`);
+    res.end();
   }
 });
 

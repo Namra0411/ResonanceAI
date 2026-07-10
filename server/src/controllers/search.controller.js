@@ -1,13 +1,15 @@
 import Document from "../models/documents.js";
 import Chunk from "../models/Chunk.js";
-import qdrant from "../utils/qdrant.js";
 import { embedTexts } from "../utils/embedder.js";
+import { hybridSearch } from "../utils/hybridSearch.js";
 
-const COLLECTION = "resonance_chunks";
 const TOP_K_CHUNKS = 20;
 const TOP_N_DOCS = 5;
 const PREVIEW_CHUNKS = 3;
 
+// NOTE: tuned against raw Qdrant cosine similarity originally. Now applied to
+// the RRF-fused hybrid score (see chat.service.js note) — worth re-tuning once
+// there's real query-log data, but left as-is for now since both are 0–1 bounded.
 const MIN_SCORE = 0.25;
 const DELTA = 0.08;
 
@@ -21,13 +23,12 @@ export const searchDocuments = async (req, res) => {
 
     const [queryVector] = await embedTexts([q]);
 
-    const hits = await qdrant.search(COLLECTION, {
-      vector: queryVector,
-      limit: TOP_K_CHUNKS,
-      with_payload: true,
-      filter: {
-        must: [{ key: "userId", match: { value: req.userId.toString() } }],
-      },
+    const hits = await hybridSearch({
+      queryVector,
+      queryText: q,
+      userId: req.userId,
+      vectorLimit: TOP_K_CHUNKS,
+      textLimit: TOP_K_CHUNKS,
     });
 
     const byDoc = {};

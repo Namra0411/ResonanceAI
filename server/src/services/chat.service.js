@@ -1,17 +1,40 @@
-import qdrant from "../utils/qdrant.js";
 import Chunk from "../models/Chunk.js";
-import { embedText, generateAnswer } from "../utils/openrouter.js";
+import {
+  embedText,
+  generateAnswer,
+  generateAnswerStream,
+} from "../utils/openrouter.js";
+import { hybridSearch } from "../utils/hybridSearch.js";
+import { rerankChunks } from "../utils/reranker.js";
 
 /**
  * Retrieval configuration
  * FACT  → precision (atomic-heavy)
  * SUMMARY → coverage (semantic + structural)
+ *
+ * NOTE: these thresholds were originally tuned against raw Qdrant cosine
+ * similarity (0–1). They now apply to the RRF-fused hybrid score (also 0–1,
+ * but a different distribution — a chunk ranked #1 by both retrievers scores
+ * near 1.0, a chunk found by only one retriever scores lower even at rank #1).
+ * Kept the same values for now since both are 0–1 bounded, but these are the
+ * first constants worth re-tuning against real query logs.
  */
 const TOP_K_FACT = 6;
 const SCORE_THRESHOLD_FACT = 0.25;
 
 const TOP_K_SUMMARY = 14;
 const SCORE_THRESHOLD_SUMMARY = 0.15;
+
+// How many candidates to pull from each retriever before RRF fusion + thresholding.
+// Wider than TOP_K so the fusion step has real candidates to rank against, not just
+// the ones that were already going to survive the threshold on vector score alone.
+const CANDIDATE_MULTIPLIER = 3;
+const MIN_CANDIDATES = 20;
+
+// How many post-threshold hits get sent into the reranker. Capped independently
+// of TOP_K/candidate limits — the rerank prompt cost scales with pool size, so
+// this is the dial for "thoroughness vs. latency/cost" of the rerank step itself.
+const RERANK_POOL_SIZE = 15;
 
 /**
  * Detect summary / explanation queries
@@ -32,7 +55,7 @@ function isSummaryQuery(query) {
 
 /**
  * Retrieval-based confidence score (0 → 1)
- * Deterministic, no LLM involvement
+ * Deterministic, no LLM involvement beyond the rerank scores already computed.
  */
 function computeConfidence(hits) {
   if (!hits.length) return 0;
@@ -89,10 +112,14 @@ export const runDocumentChat = async ({
   documentId,
   query,
   chatHistory = [],
+  onStatus, // optional: (status: string) => void, e.g. "retrieving" | "generating"
+  onToken, // optional: (deltaText: string) => void — enables streaming
 }) => {
  
   // STEP 0 — Decide retrieval mode
  
+  onStatus?.("retrieving");
+
   const summaryMode = isSummaryQuery(query);
 
   const mode = summaryMode ? "SUMMARY" : "FACT";
@@ -112,17 +139,18 @@ export const runDocumentChat = async ({
   const queryEmbedding = await embedText(retrievalQuery);
 
  
-  // STEP 2 — Vector search (document scoped)
+  // STEP 2 — Hybrid search: Qdrant vector search + Mongo $text keyword search,
+  // merged via Reciprocal Rank Fusion (document scoped)
  
-  const searchResult = await qdrant.search("resonance_chunks", {
-    vector: queryEmbedding,
-    limit: TOP_K,
-    filter: {
-      must: [
-        { key: "userId", match: { value: userId.toString() } },
-        { key: "documentId", match: { value: documentId.toString() } },
-      ],
-    },
+  const candidateLimit = Math.max(TOP_K * CANDIDATE_MULTIPLIER, MIN_CANDIDATES);
+
+  const searchResult = await hybridSearch({
+    queryVector: queryEmbedding,
+    queryText: retrievalQuery,
+    userId,
+    documentId,
+    vectorLimit: candidateLimit,
+    textLimit: candidateLimit,
   });
 
  
@@ -137,8 +165,10 @@ export const runDocumentChat = async ({
   }
 
   if (hits.length === 0) {
+    const fallbackAnswer = "I could not find this information in the document.";
+    onToken?.(fallbackAnswer);
     return {
-      answer: "I could not find this information in the document.",
+      answer: fallbackAnswer,
       sources: [],
       confidence: 0,
       mode,
@@ -147,25 +177,60 @@ export const runDocumentChat = async ({
   }
 
  
-  // STEP 4 — Fetch chunks from Mongo (preserve order)
+  // STEP 4 — Rerank: pull a pool from hybrid hits, fetch their text once,
+  // let the LLM grade relevance, then keep only the top TOP_K afterward.
+  // This is the step that reorders "vector+keyword agree it's relevant" into
+  // "actually answers this specific question" — RRF rank ≠ answer relevance.
  
-  const chunkIds = hits.map((h) => h.payload.chunkId);
+  const rerankPool = hits.slice(0, RERANK_POOL_SIZE);
+  const poolChunkIds = rerankPool.map((h) => h.payload.chunkId);
 
-  const chunks = await Chunk.find({
-    _id: { $in: chunkIds },
+  const poolChunks = await Chunk.find({
+    _id: { $in: poolChunkIds },
   }).select("text metadata");
 
-  const chunkMap = new Map(
-    chunks.map((c) => [c._id.toString(), c])
+  const poolChunkMap = new Map(
+    poolChunks.map((c) => [c._id.toString(), c])
   );
 
-  const orderedChunks = hits
-    .map((h) => chunkMap.get(h.payload.chunkId))
+  const rerankCandidates = rerankPool
+    .map((h) => {
+      const chunk = poolChunkMap.get(h.payload.chunkId);
+      return chunk ? { id: h.payload.chunkId, text: chunk.text } : null;
+    })
+    .filter(Boolean);
+
+  const reranked = await rerankChunks(retrievalQuery, rerankCandidates);
+
+  const finalChunkIds = reranked.slice(0, TOP_K).map((r) => r.id);
+
+  const orderedChunks = finalChunkIds
+    .map((id) => poolChunkMap.get(id))
     .filter(Boolean);
 
   const context = orderedChunks
     .map((c) => c.text)
     .join("\n\n");
+
+  // Effective score per final chunk, for confidence computation below:
+  // rerank score (normalized 0-1) when available, falling back to the
+  // pre-rerank hybrid score if the reranker degraded to original order.
+  const hybridHitByChunkId = new Map(
+    rerankPool.map((h) => [h.payload.chunkId, h])
+  );
+  const rerankScoreById = new Map(
+    reranked.map((r) => [r.id, r.rerankScore])
+  );
+
+  const finalHits = finalChunkIds.map((id) => {
+    const rerankScore = rerankScoreById.get(id);
+    const effectiveScore =
+      rerankScore != null
+        ? rerankScore / 10
+        : hybridHitByChunkId.get(id)?.score ?? 0;
+
+    return { score: effectiveScore };
+  });
 
  
   // STEP 5 — Build chat history block (Layer 1)
@@ -212,18 +277,19 @@ Question:
 ${query}
 `;
 
- 
+  
   // STEP 7 — Generate answer
  
-  const answer = await generateAnswer({
-    systemPrompt,
-    userPrompt,
-  });
+  onStatus?.("generating");
+
+  const answer = onToken
+    ? await generateAnswerStream({ systemPrompt, userPrompt, onToken })
+    : await generateAnswer({ systemPrompt, userPrompt });
 
  
   // STEP 8 — Confidence + citations
  
-  const confidence = computeConfidence(hits);
+  const confidence = computeConfidence(finalHits);
 
   const sources = orderedChunks.map((c) => ({
     chunkId: c._id,

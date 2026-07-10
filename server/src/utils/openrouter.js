@@ -51,3 +51,39 @@ export async function generateAnswer({ systemPrompt, userPrompt }) {
 
   return response.choices[0].message.content;
 }
+
+/**
+ * Streaming chat completion helper.
+ * Calls onToken(deltaText) for every token chunk as it arrives.
+ * Returns the full concatenated answer once the stream ends
+ * (this is what gets persisted to Mongo).
+ */
+export async function generateAnswerStream({
+  systemPrompt,
+  userPrompt,
+  onToken,
+}) {
+  const openai = getOpenRouter();
+
+  const stream = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0,
+    stream: true,
+    messages: [
+      { role: "system", content: systemPrompt.trim() },
+      { role: "user", content: userPrompt.trim() },
+    ],
+  });
+
+  let fullText = "";
+
+  for await (const chunk of stream) {
+    const delta = chunk.choices?.[0]?.delta?.content;
+    if (delta) {
+      fullText += delta;
+      onToken?.(delta);
+    }
+  }
+
+  return fullText;
+}
