@@ -46,7 +46,7 @@ export const sendChatMessage = async ({
  * callbacks: { onStatus(status), onToken(token), onDone(meta), onError(err) }
  */
 export const streamChatMessage = async (
-  { sessionId, documentId, query },
+  { sessionId, documentId, query, answerMode = "general" },
   { onStatus, onToken, onDone, onError }
 ) => {
   try {
@@ -56,7 +56,7 @@ export const streamChatMessage = async (
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ sessionId, documentId, query }),
+        body: JSON.stringify({ sessionId, documentId, query, answerMode }),
       }
     );
 

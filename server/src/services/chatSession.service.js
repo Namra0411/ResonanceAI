@@ -25,6 +25,7 @@ export async function handleChatMessage({
   documentId,
   sessionId,
   query,
+  answerMode = "general",
 }) {
   // Save user message
   await ChatMessage.create({
@@ -52,6 +53,7 @@ export async function handleChatMessage({
     documentId,
     query,
     chatHistory,
+    answerMode,
   });
 
   // Save assistant message
@@ -62,6 +64,7 @@ export async function handleChatMessage({
     confidence: ragResult.confidence,
     sources: ragResult.sources,
     topPages: ragResult.topPages, // 🔥 DO NOT MAP / DESTROY
+    answerMode: ragResult.answerMode,
   });
 
   return assistantMessage;
@@ -78,6 +81,7 @@ export async function streamChatMessage({
   documentId,
   sessionId,
   query,
+  answerMode = "general",
   res,
 }) {
   const send = (event, data) => {
@@ -109,6 +113,7 @@ export async function streamChatMessage({
     documentId,
     query,
     chatHistory,
+    answerMode,
     onStatus: (status) => send("status", { status }),
     onToken: (token) => send("token", { token }),
   });
@@ -120,6 +125,7 @@ export async function streamChatMessage({
     confidence: ragResult.confidence,
     sources: ragResult.sources,
     topPages: ragResult.topPages,
+    answerMode: ragResult.answerMode,
   });
 
   send("done", {
@@ -127,6 +133,7 @@ export async function streamChatMessage({
     confidence: assistantMessage.confidence,
     sources: assistantMessage.sources,
     topPages: assistantMessage.topPages,
+    answerMode: assistantMessage.answerMode,
   });
 
   res.end();

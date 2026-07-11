@@ -18,6 +18,7 @@ const DocumentChat = ({ documentId: propDocumentId, onPageClick, embedded }) => 
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [answerMode, setAnswerMode] = useState("general"); // "strict" | "general"
 
   const bottomRef = useRef(null);
 
@@ -79,7 +80,7 @@ const DocumentChat = ({ documentId: propDocumentId, onPageClick, embedded }) => 
     };
 
     await streamChatMessage(
-      { sessionId, documentId, query: userMessage.content },
+      { sessionId, documentId, query: userMessage.content, answerMode },
       {
         onStatus: (status) => updateAssistant({ status }),
         onToken: (token) =>
@@ -98,6 +99,7 @@ const DocumentChat = ({ documentId: propDocumentId, onPageClick, embedded }) => 
             confidence: meta.confidence,
             topPages: meta.topPages,
             sources: meta.sources,
+            answerMode: meta.answerMode,
           }),
         onError: () => setError("Failed to get answer"),
       }
@@ -117,7 +119,31 @@ const DocumentChat = ({ documentId: propDocumentId, onPageClick, embedded }) => 
         </button>
       )}
 
-      <div className="docchat-header">Chat</div>
+      <div className="docchat-header">
+        Chat
+        <div className="docchat-mode-toggle" role="radiogroup" aria-label="Answer mode">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={answerMode === "general"}
+            className={`docchat-mode-btn ${answerMode === "general" ? "docchat-mode-active" : ""}`}
+            onClick={() => setAnswerMode("general")}
+            title="Can reason beyond the document when clearly related"
+          >
+            General
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={answerMode === "strict"}
+            className={`docchat-mode-btn ${answerMode === "strict" ? "docchat-mode-active" : ""}`}
+            onClick={() => setAnswerMode("strict")}
+            title="Answers only from what's explicitly in the document"
+          >
+            Strict
+          </button>
+        </div>
+      </div>
 
       <div className="docchat-messages">
         {messages.map((m, idx) => (
@@ -146,6 +172,12 @@ const DocumentChat = ({ documentId: propDocumentId, onPageClick, embedded }) => 
 
               {m.role === "assistant" && (
                 <div className="docchat-meta">
+                  {m.answerMode && (
+                    <span className="docchat-mode-badge">
+                      {m.answerMode === "strict" ? "Strict" : "General"}
+                    </span>
+                  )}
+
                   {m.confidence !== undefined && (
                     <span className="docchat-confidence">
                       Confidence: {m.confidence}

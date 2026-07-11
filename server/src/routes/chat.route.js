@@ -84,7 +84,7 @@ router.get(
 );
 router.post("/message", auth, async (req, res) => {
   try {
-    const { sessionId, documentId, query } = req.body;
+    const { sessionId, documentId, query, answerMode } = req.body;
     const userId = req.userId; 
 
     if (!userId) {
@@ -104,6 +104,7 @@ router.post("/message", auth, async (req, res) => {
       documentId,
       sessionId,
       query,
+      answerMode,
     });
 
     res.json({
@@ -111,6 +112,7 @@ router.post("/message", auth, async (req, res) => {
       confidence: assistantMessage.confidence,
       topPages: assistantMessage.topPages,
       sources: assistantMessage.sources,
+      answerMode: assistantMessage.answerMode,
     });
   } catch (err) {
     console.error("Chat message error:", err);
@@ -119,7 +121,7 @@ router.post("/message", auth, async (req, res) => {
 });
 
 router.post("/message/stream", auth, async (req, res) => {
-  const { sessionId, documentId, query } = req.body;
+  const { sessionId, documentId, query, answerMode } = req.body;
   const userId = req.userId;
 
   if (!userId) {
@@ -139,7 +141,14 @@ router.post("/message/stream", auth, async (req, res) => {
   res.flushHeaders?.();
 
   try {
-    await streamChatMessage({ userId, documentId, sessionId, query, res });
+    await streamChatMessage({
+      userId,
+      documentId,
+      sessionId,
+      query,
+      answerMode,
+      res,
+    });
   } catch (err) {
     console.error("Stream chat error:", err);
     res.write(`event: error\n`);

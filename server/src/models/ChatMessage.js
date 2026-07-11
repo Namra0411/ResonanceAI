@@ -19,6 +19,10 @@ const chatMessageSchema = new mongoose.Schema(
 
     // assistant-only metadata
     confidence: Number,
+    answerMode: {
+      type: String,
+      enum: ["strict", "general"],
+    },
     topPages: [
   {
     pageNumber: Number,
