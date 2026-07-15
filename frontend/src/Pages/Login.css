@@ -6,127 +6,243 @@ html, body, #root {
   height: 100%;
 }
 
-/* Background */
+/* ---- Design tokens ---- */
 .landing-root {
+  --blueprint: #0B1120;
+  --grid-line: rgba(79, 216, 224, 0.08);
+  --steel: #7A8CA8;
+  --vector-cool: #4FD8E0;
+  --target-coral: #FF6B4A;
+  --linen: #EDEFF5;
+
+  --font-display: "Big Shoulders Display", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(1200px 600px at top, #1e293b, #020617);
-  color: white;
+  background: var(--blueprint);
+  color: var(--linen);
+  font-family: var(--font-body);
   overflow: hidden;
 }
 
-/* Content wrapper */
+/* Blueprint grid backdrop — literal to the "coordinate space" concept */
+.landing-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(circle at 50% 35%, black, transparent 75%);
+          mask-image: radial-gradient(circle at 50% 35%, black, transparent 75%);
+}
+
 .landing-content {
-  max-width: 720px;
-  padding: 48px 32px;
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  padding: 56px 32px;
   text-align: center;
-  animation: enter 0.9s ease-out;
+  animation: content-enter 0.8s ease-out;
 }
 
-/* Logo (BIG now) */
-.landing-logo {
-  width: 120px;
-  height: 120px;
-  margin-bottom: 20px;
-  filter: drop-shadow(0 12px 24px rgba(0,0,0,0.4));
-}
-
-/* Title */
-.landing-title {
-  font-size: 52px;
-  font-weight: 900;
-  letter-spacing: -1px;
-  margin-bottom: 12px;
-}
-
-/* Subtitle */
-.landing-subtitle {
-  font-size: 22px;
-  color: #93c5fd;
-  margin-bottom: 18px;
-}
-
-/* Description */
-.landing-description {
-  font-size: 17px;
-  color: #cbd5f5;
-  line-height: 1.7;
-  margin-bottom: 36px;
-}
-
-/* Feature row */
-.landing-features {
+/* ---- Wordmark ---- */
+.landing-wordmark {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.vectra-glyph {
+  width: 30px;
+  height: 30px;
+  color: var(--target-coral);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--steel);
+}
+
+/* ---- Title ---- */
+.landing-title {
+  font-family: var(--font-display);
+  font-size: 88px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 0.95;
+  margin: 0 0 10px;
+  color: var(--linen);
+}
+
+/* ---- Subtitle ---- */
+.landing-subtitle {
+  font-family: var(--font-body);
+  font-size: 20px;
+  font-weight: 400;
+  color: #C9D0E0;
+  margin: 0 0 6px;
+}
+
+.landing-subtitle em {
+  color: var(--target-coral);
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* ---- Vector field signature ---- */
+.landing-vectorfield {
+  width: 100%;
+  height: 92px;
+  display: block;
+  margin: 10px 0 22px;
+}
+
+/* ---- Description ---- */
+.landing-description {
+  font-size: 16px;
+  color: var(--steel);
+  line-height: 1.7;
+  max-width: 480px;
+  margin: 0 auto 36px;
+}
+
+/* ---- Instrument readout row ---- */
+.landing-readout {
+  display: flex;
+  align-items: stretch;
   justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 42px;
+  border-top: 1px solid rgba(237, 239, 245, 0.12);
+  border-bottom: 1px solid rgba(237, 239, 245, 0.12);
+  padding: 16px 0;
+  margin-bottom: 40px;
 }
 
-.feature {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255,255,255,0.12);
-  padding: 10px 16px;
-  border-radius: 999px;
-  font-size: 14px;
-  backdrop-filter: blur(8px);
+.readout-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 26px;
 }
 
-/* CTA */
+.readout-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--vector-cool);
+}
+
+.readout-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--linen);
+}
+
+.readout-divider {
+  width: 1px;
+  background: rgba(237, 239, 245, 0.12);
+}
+
+/* ---- CTA ---- */
 .google-cta {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 32px;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 16px;
-  border: none;
+  padding: 14px 26px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 107, 74, 0.4);
   cursor: pointer;
-  background: white;
-  color: #020617;
-  transition: all 0.25s ease;
+  background: var(--linen);
+  color: var(--blueprint);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .google-cta:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+  border-color: var(--target-coral);
+  box-shadow: 0 0 0 3px rgba(255, 107, 74, 0.12);
+  transform: translateY(-1px);
+}
+
+.google-cta:active {
+  transform: translateY(0);
+}
+
+.google-cta:focus-visible {
+  outline: 2px solid var(--target-coral);
+  outline-offset: 3px;
 }
 
 .google-icon {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
-/* Footnote */
+/* ---- Footnote ---- */
 .landing-footnote {
-  margin-top: 28px;
-  font-size: 13px;
-  color: #94a3b8;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--steel);
+  border-left: 2px solid rgba(255, 107, 74, 0.45);
+  padding-left: 10px;
+  display: inline-block;
+  margin-top: 30px;
+  text-align: left;
 }
 
-/* Animation */
-@keyframes enter {
-  from {
-    opacity: 0;
-    transform: translateY(32px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ---- Motion ---- */
+@keyframes content-enter {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Mobile */
+@media (prefers-reduced-motion: reduce) {
+  .landing-content { animation: none; }
+}
+
+/* ---- Mobile ---- */
 @media (max-width: 600px) {
-  .landing-title {
-    font-size: 40px;
+  .landing-content {
+    padding: 40px 20px;
   }
 
-  .landing-description {
-    font-size: 15px;
+  .landing-title {
+    font-size: 56px;
+  }
+
+  .landing-subtitle {
+    font-size: 17px;
+  }
+
+  .landing-readout {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+
+  .readout-cell {
+    padding: 0 16px;
+  }
+
+  .landing-vectorfield {
+    height: 70px;
+  }
+
+  .landing-grid {
+    background-size: 30px 30px;
   }
 }

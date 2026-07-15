@@ -167,6 +167,8 @@ const DocumentChat = ({ documentId: propDocumentId, onPageClick, embedded }) => 
                   ? "Retrieving relevant context…"
                   : m.status === "generating"
                   ? "Generating answer…"
+                  : m.status === "cached"
+                  ? "Fetching cached answer…"
                   : m.content}
               </div>
 

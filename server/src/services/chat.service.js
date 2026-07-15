@@ -7,6 +7,7 @@ import {
 import { hybridSearch } from "../utils/hybridSearch.js";
 import { rerankChunks } from "../utils/reranker.js";
 import { sanitizeChunkText } from "../utils/sanitizeInput.js";
+import { getCachedAnswer, setCachedAnswer } from "../utils/queryCache.js";
 
 /**
  * Retrieval configuration
@@ -117,7 +118,17 @@ export const runDocumentChat = async ({
   onStatus, // optional: (status: string) => void, e.g. "retrieving" | "generating"
   onToken, // optional: (deltaText: string) => void — enables streaming
 }) => {
- 
+
+  // STEP -1 — Cache check (exact-repeat queries only; ignores chatHistory
+  // deliberately — see queryCache.js for scope/limits)
+
+  const cached = await getCachedAnswer({ documentId, answerMode, query });
+  if (cached) {
+    onStatus?.("cached");
+    onToken?.(cached.answer);
+    return { ...cached, cached: true };
+  }
+
   // STEP 0 — Decide retrieval mode
  
   onStatus?.("retrieving");
@@ -169,13 +180,17 @@ export const runDocumentChat = async ({
   if (hits.length === 0) {
     const fallbackAnswer = "I could not find this information in the document.";
     onToken?.(fallbackAnswer);
-    return {
+    const result = {
       answer: fallbackAnswer,
       sources: [],
       confidence: 0,
       mode,
+      answerMode,
       topPages: [],
+      flags: { possibleInjection: false },
     };
+    await setCachedAnswer({ documentId, answerMode, query }, result);
+    return result;
   }
 
  
@@ -351,7 +366,7 @@ const topPages = topPageNumbers.map((page) => ({
  
   // STEP 9 — Final response
  
-  return {
+  const result = {
     answer,
     mode,
     answerMode,
@@ -360,4 +375,8 @@ const topPages = topPageNumbers.map((page) => ({
     topPages,
     flags: { possibleInjection: injectionFlagged },
   };
+
+  await setCachedAnswer({ documentId, answerMode, query }, result);
+
+  return result;
 };
