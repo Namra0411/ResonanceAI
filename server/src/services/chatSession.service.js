@@ -63,7 +63,7 @@ export async function handleChatMessage({
     content: ragResult.answer,
     confidence: ragResult.confidence,
     sources: ragResult.sources,
-    topPages: ragResult.topPages, // 🔥 DO NOT MAP / DESTROY
+    topPages: ragResult.topPages, //  DO NOT MAP / DESTROY
     answerMode: ragResult.answerMode,
   });
 

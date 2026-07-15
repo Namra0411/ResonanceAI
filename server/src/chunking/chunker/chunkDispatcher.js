@@ -75,7 +75,7 @@ export async function chunkDocumentByStructure({
     });
   }
 
-  // 🔒 FINAL NORMALIZATION STEP (THIS FIXES YOUR ERROR)
+  //  FINAL NORMALIZATION STEP (THIS FIXES YOUR ERROR)
   const totalChunks = allChunks.length;
 
   return allChunks.map((chunk, index) => ({

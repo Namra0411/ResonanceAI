@@ -52,6 +52,6 @@ export async function setCachedAnswer(
     const key = buildCacheKey({ documentId, answerMode, query });
     await redis.set(key, JSON.stringify(result), "EX", ttlSeconds);
   } catch (err) {
-    console.warn("⚠️ queryCache write failed:", err.message);
+    console.warn(" queryCache write failed:", err.message);
   }
 }
