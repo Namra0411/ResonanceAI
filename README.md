@@ -1,5 +1,5 @@
 # Vectra
-
+https://youtu.be/bvdFHW6DxFA
 **Upload a document. Ask anything. Get accurate, cited answers — instantly.**
 
 Vectra is a full-stack Retrieval-Augmented Generation (RAG) assistant that turns PDFs and documents into a searchable, conversational knowledge base. It combines hybrid semantic + keyword retrieval, structure-aware chunking, and streaming AI responses with page-level source citations.
